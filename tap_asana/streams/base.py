@@ -56,15 +56,7 @@ def retry_after_wait_gen(**kwargs):
     yield math.floor(float(sleep_time_str))
 
 
-def invalid_token_handler(details):
-    LOGGER.info("Received InvalidTokenError, refreshing access token")
-    Context.asana.refresh_access_token()
-
-
 def asana_error_handling(fnc):
-    @backoff.on_exception(backoff.expo,
-                          InvalidTokenError,
-                          on_backoff=invalid_token_handler)
     @backoff.on_exception(backoff.expo,
                           (simplejson.scanner.JSONDecodeError,
                           RetryableAsanaError),
