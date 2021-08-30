@@ -17,7 +17,7 @@ class Asana(object):
         self.access_token = access_token
         self._client = self._oauth_auth() or self._access_token_auth()
         self._last_refresh = datetime.datetime(year=2000, month=1, day=1)  # Fecha anterior a creacion de asana
-        self.refresh_access_token()
+        self.maybe_refresh_access_token()
 
     def _oauth_auth(self):
         if self.client_id is None or self.client_secret is None or self.redirect_uri is None or self.refresh_token is None:
@@ -32,7 +32,7 @@ class Asana(object):
             return None
         return asana.Client.access_token(self.access_token)
 
-    def refresh_access_token(self):
+    def maybe_refresh_access_token(self):
         if datetime.datetime.now() - self._last_refresh < datetime.timedelta(minutes=45):
             return
         LOGGER.info("Refreshing access token.")
