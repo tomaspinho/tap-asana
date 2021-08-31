@@ -2,6 +2,7 @@
 from singer import utils
 from tap_asana.context import Context
 from tap_asana.streams.base import Stream
+from asana.error import ForbiddenError
 import singer
 
 LOGGER = singer.get_logger()
@@ -91,10 +92,14 @@ class Stories(Stream):
 
       LOGGER.info("Syncing stream stories: getting stories for task %s, %d/%d tasks", task_gid, i+1, tasks_len)
 
-      for story in Context.asana.client.stories.get_stories_for_task(task_gid=task_gid, opt_fields=opt_fields):
-        session_bookmark = self.get_updated_session_bookmark(session_bookmark, story[self.replication_key])
-        if self.is_bookmark_old(story[self.replication_key]):
-          yield story
+      try:
+        for story in Context.asana.client.stories.get_stories_for_task(task_gid=task_gid, opt_fields=opt_fields):
+          session_bookmark = self.get_updated_session_bookmark(session_bookmark, story[self.replication_key])
+          if self.is_bookmark_old(story[self.replication_key]):
+            yield story
+      except ForbiddenError:
+        LOGGER.warn("Got a ForbidenError, looks like you don't have access to task %s, skipping...", task_gid)
+
     self.update_bookmark(session_bookmark)
 
 
