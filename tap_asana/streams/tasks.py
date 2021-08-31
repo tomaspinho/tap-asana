@@ -2,7 +2,9 @@
 from singer import utils
 from tap_asana.context import Context
 from tap_asana.streams.base import Stream
+import singer
 
+LOGGER = singer.get_logger()
 
 class Tasks(Stream):
   name = 'tasks'
@@ -53,13 +55,30 @@ class Tasks(Stream):
     session_bookmark = bookmark
     modified_since = bookmark.strftime("%Y-%m-%dT%H:%M:%S.%f")
     opt_fields = ",".join(self.fields)
-    for workspace in self.call_api("workspaces"):
-      for project in self.call_api("projects", workspace=workspace["gid"]):
-        for task in self.call_api("tasks", project=project["gid"], opt_fields=opt_fields,
-                                  modified_since=modified_since):
-          session_bookmark = self.get_updated_session_bookmark(session_bookmark, task[self.replication_key])
-          if self.is_bookmark_old(task[self.replication_key]):
-            yield task
+
+    LOGGER.info("Syncing stream tasks: getting workspaces")
+    workspaces = [w for w in self.call_api("workspaces")]
+
+    LOGGER.info("Syncing stream tasks: getting projects")
+    projects = [p for workspace in workspaces for p in self.call_api("projects", workspace=workspace["gid"])]
+    projects_len = len(projects)
+
+    LOGGER.info("Syncing stream tasks: getting tasks")
+
+    for i, project in enumerate(projects):
+      Context.asana.maybe_refresh_access_token()
+
+      project_gid = project['gid']
+      num_tasks = Context.asana.client.projects.get_task_counts_for_project(project_gid, opt_pretty=True, opt_fields="num_tasks")["num_tasks"]
+
+      LOGGER.info("Syncing stream tasks: getting %d tasks for project %s, %d/%d", num_tasks, project_gid, i+1, projects_len)
+
+      for task in self.call_api("tasks", project=project["gid"], opt_fields=opt_fields,
+                                modified_since=modified_since):
+        session_bookmark = self.get_updated_session_bookmark(session_bookmark, task[self.replication_key])
+        if self.is_bookmark_old(task[self.replication_key]):
+          yield task
+
     self.update_bookmark(session_bookmark)
 
 
