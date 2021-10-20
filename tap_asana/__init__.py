@@ -16,6 +16,9 @@ import tap_asana.streams # Load stream objects into Context
 
 REQUIRED_CONFIG_KEYS = [
     "start_date",
+]
+
+REQUIRED_OAUTH_KEYS = [
     "client_id",
     "client_secret",
     "redirect_uri",
@@ -158,14 +161,24 @@ def main():
     # Parse command line arguments
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
 
-    # Set context.
-    creds = {
-        "start_date": args.config['start_date'],
-        "client_id": args.config['client_id'],
-        "client_secret": args.config['client_secret'],
-        "redirect_uri": args.config['redirect_uri'],
-        "refresh_token": args.config['refresh_token']
-    }
+    if 'access_token' in args.config:
+        LOGGER.debug('Logging in to Asana with access token')
+        creds = {
+            "start_date": args.config['start_date'],
+            "access_token": args.config['access_token']
+        }
+    elif all(key in args.config for key in REQUIRED_OAUTH_KEYS):
+        LOGGER.debug('Logging in to Asana with oauth')
+        creds = {
+            "start_date": args.config['start_date'],
+            "client_id": args.config['client_id'],
+            "client_secret": args.config['client_secret'],
+            "redirect_uri": args.config['redirect_uri'],
+            "refresh_token": args.config['refresh_token']
+        }
+    else:
+        raise ("No suitable authentication credentials found. Please specify either 'access_token' or all of: " +
+            ", ".join(["\'%s\'" % k for k in REQUIRED_OAUTH_KEYS]))
 
     Context.config = creds
     Context.state = args.state
