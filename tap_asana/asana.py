@@ -9,7 +9,7 @@ LOGGER = singer.get_logger()
 
 class Asana(object):
 
-    def __init__(self, client_id, client_secret, redirect_uri, refresh_token, start_date, access_token=None):
+    def __init__(self, start_date, client_id=None, client_secret=None, redirect_uri=None, refresh_token=None, access_token=None):
         self.client_id = client_id
         self.client_secret = client_secret
         self.redirect_uri = redirect_uri
@@ -33,6 +33,9 @@ class Asana(object):
         return asana.Client.access_token(self.access_token)
 
     def maybe_refresh_access_token(self):
+        # If it's a personal access token or a service account token, we have nothing to refresh
+        if self.access_token is not None:
+            return
         now = datetime.datetime.now()
         if now - self._last_refresh < datetime.timedelta(minutes=45):
             return
